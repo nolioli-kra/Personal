@@ -742,9 +742,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 14
   groundDrag: 6
-  jumpForce: 9
+  jumpForce: 15
   jumpCooldown: 0.25
-  airMultiplier: 1
+  airMultiplier: 0.3
+  fallMultiplier: 30
+  jumpApex: 8
   jumpKey: 32
   playerHeight: 3
   whatIsGround:

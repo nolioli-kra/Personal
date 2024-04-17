@@ -14,6 +14,10 @@ public class PlayerMovement : MonoBehaviour
     public float airMultiplier;
     bool readyToJump = true;
 
+    public float fallMultiplier;
+    private bool isFalling = false;
+    public float jumpApex;
+
     [Header("Keybinds")]
     public KeyCode jumpKey = KeyCode.Space;
 
@@ -31,6 +35,9 @@ public class PlayerMovement : MonoBehaviour
 
     Rigidbody playerRb;
 
+    //debug info
+    private Vector3 currentVelocity;
+
     void Start()
     {
         playerRb = GetComponent<Rigidbody>();
@@ -42,6 +49,15 @@ public class PlayerMovement : MonoBehaviour
         //ground check
         isGrounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
 
+        //falling check
+        if (!isGrounded && playerRb.velocity.y < jumpApex)
+        {
+            isFalling = true;
+        } else if (isGrounded || playerRb.velocity.y > jumpApex)
+        {
+            isFalling = false;
+        }
+
         MyInput();
 
         //apply drag when grounded
@@ -52,6 +68,10 @@ public class PlayerMovement : MonoBehaviour
         {
             playerRb.drag = 0;
         }
+
+        //debugging
+        currentVelocity = playerRb.velocity;
+        Debug.Log("Current velocity: " + currentVelocity);
     }
 
     private void FixedUpdate()
@@ -82,10 +102,17 @@ public class PlayerMovement : MonoBehaviour
 
         //on ground
         if(isGrounded)
+        {
             playerRb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
-        //in air
-        else if(!isGrounded)
+        } //in air
+        else if (!isGrounded)
+        {
+            if (isFalling)
+            {
+                playerRb.AddForce(Vector3.down * fallMultiplier, ForceMode.Acceleration);
+            }
             playerRb.AddForce(moveDirection.normalized * moveSpeed * 10f * airMultiplier, ForceMode.Force);
+        }
     }
 
     private void SpeedControl()
