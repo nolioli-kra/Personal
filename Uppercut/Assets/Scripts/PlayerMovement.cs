@@ -5,7 +5,9 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     [Header("Movement")]
-    public float moveSpeed;
+    private float moveSpeed;
+    public float walkSpeed;
+    public float sprintSpeed;
 
     public float groundDrag;
 
@@ -20,11 +22,20 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Keybinds")]
     public KeyCode jumpKey = KeyCode.Space;
+    public KeyCode sprintKey = KeyCode.LeftControl;
+    public KeyCode abilityOne = KeyCode.Q;
+    public KeyCode abilityTwo = KeyCode.E;
+    public KeyCode abilityThree = KeyCode.R;
+    public KeyCode styleMove = KeyCode.LeftShift;
 
     [Header("Ground Check")]
     public float playerHeight;
     public LayerMask whatIsGround;
     private bool isGrounded;
+
+    [Header("Slope Handling")]
+    public float maxSlopeAngle;
+    private RaycastHit slopeHit;
 
     public Transform orientation;
 
@@ -35,8 +46,17 @@ public class PlayerMovement : MonoBehaviour
 
     Rigidbody playerRb;
 
+    public MovementState state;
+    public enum MovementState
+    {
+        Walking,
+        Sprinting,
+        air
+    }
+
     //debug info
     private Vector3 currentVelocity;
+    private bool onSlope;
 
     void Start()
     {
@@ -47,18 +67,21 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         //ground check
-        isGrounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
+        isGrounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.3f, whatIsGround);
 
         //falling check
         if (!isGrounded && playerRb.velocity.y < jumpApex)
         {
             isFalling = true;
-        } else if (isGrounded || playerRb.velocity.y > jumpApex)
+        } 
+        else if (isGrounded || onSlope || playerRb.velocity.y > jumpApex)
         {
             isFalling = false;
         }
 
         MyInput();
+        StateHandler();
+        SpeedControl();
 
         //apply drag when grounded
         if (isGrounded)
@@ -80,6 +103,27 @@ public class PlayerMovement : MonoBehaviour
         SpeedControl();
     }
 
+    private void StateHandler()
+    {
+        //sprinting
+        if (Input.GetKey(sprintKey) && isGrounded)
+        {
+            state = MovementState.Sprinting;
+            moveSpeed = sprintSpeed;
+        }
+        //walking
+        else if (isGrounded)
+        {
+            state = MovementState.Walking;
+            moveSpeed = walkSpeed;
+        }
+        //air
+        else
+        {
+            state = MovementState.air;
+        }
+    }
+
     private void MyInput()
     {
         horizontalInput = Input.GetAxisRaw("Horizontal");
@@ -98,10 +142,23 @@ public class PlayerMovement : MonoBehaviour
 
     private void MovePlayer()
     {
+
         moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
 
+        //on slope
+        if (OnSlope())
+        {
+            playerRb.AddForce(GetSlopeMoveDirection() * moveSpeed * 10f, ForceMode.Force);
+
+            onSlope = true;
+        }
+        else
+        {
+            onSlope = false;
+        }
+
         //on ground
-        if(isGrounded)
+        if (isGrounded)
         {
             playerRb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
         } //in air
@@ -138,5 +195,20 @@ public class PlayerMovement : MonoBehaviour
     private void ResetJump()
     {
         readyToJump = true;
+    }
+
+    private bool OnSlope()
+    {
+        if (Physics.Raycast(transform.position, Vector3.down, out slopeHit, playerHeight * 0.5f + 0.3f))
+        {
+            float angle = Vector3.Angle(Vector3.up, slopeHit.normal);
+            return angle < maxSlopeAngle && angle != 0;
+        }
+        return false;
+    }
+
+    private Vector3 GetSlopeMoveDirection()
+    {
+        return Vector3.ProjectOnPlane(moveDirection, slopeHit.normal).normalized;
     }
 }
