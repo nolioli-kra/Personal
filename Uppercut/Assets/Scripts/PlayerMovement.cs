@@ -94,7 +94,7 @@ public class PlayerMovement : MonoBehaviour
 
         //debugging
         currentVelocity = playerRb.velocity;
-        Debug.Log("Current velocity: " + currentVelocity);
+        //Debug.Log("Current velocity: " + currentVelocity);
     }
 
     private void FixedUpdate()

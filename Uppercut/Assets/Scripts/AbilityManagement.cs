@@ -10,14 +10,15 @@ public class PlayerController : MonoBehaviour
     public KeyCode abilityThree = KeyCode.R;
 
     // Key binding for style-specific special move
-    public KeyCode styleMove = KeyCode.LeftShift;
+    public KeyCode styleSwitch = KeyCode.LeftShift;
 
     // Available styles
     public enum PlayerStyle
     {
         Style1,
         Style2,
-        Style3
+        Style3,
+        TestStyle
     }
     public PlayerStyle currentStyle;
 
@@ -25,12 +26,22 @@ public class PlayerController : MonoBehaviour
     public Ability[] style1Abilities;
     public Ability[] style2Abilities;
     public Ability[] style3Abilities;
+    public Ability[] testStyleAbilities;
+
+    //UiController reference
+    private UIController uiController;
+    //current index of active style
+    public int currentStyleIndex;
 
     // Start is called before the first frame update
     void Start()
     {
         // Set initial style
         currentStyle = PlayerStyle.Style1;
+
+        // Get UIController reference
+        uiController = GameObject.FindObjectOfType<UIController>();
+        uiController.UpdateStyleIcon(currentStyleIndex);
     }
 
     // Update is called once per frame
@@ -51,7 +62,7 @@ public class PlayerController : MonoBehaviour
         }
 
         // Handle style switch
-        if (Input.GetKeyDown(styleMove))
+        if (Input.GetKeyDown(styleSwitch))
         {
             SwitchStyle();
         }
@@ -75,6 +86,12 @@ public class PlayerController : MonoBehaviour
 
         // Log style switch (for demonstration purposes)
         Debug.Log("Switched to " + currentStyle.ToString());
+
+        //update UI
+        if (uiController != null)
+        {
+            uiController.UpdateStyleIcon((int)currentStyle);
+        }
     }
 
     // Method to get abilities array for current style
@@ -88,6 +105,8 @@ public class PlayerController : MonoBehaviour
                 return style2Abilities;
             case PlayerStyle.Style3:
                 return style3Abilities;
+            case PlayerStyle.TestStyle:
+                return testStyleAbilities;
             default:
                 return null;
         }
