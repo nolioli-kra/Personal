@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class AbilityManagement : MonoBehaviour
 {
     // Key bindings for abilities
     public KeyCode abilityOne = KeyCode.Q;
@@ -10,7 +10,7 @@ public class PlayerController : MonoBehaviour
     public KeyCode abilityThree = KeyCode.R;
 
     // Key binding for style-specific special move
-    public KeyCode styleSwitch = KeyCode.LeftShift;
+    public KeyCode styleSwitch = KeyCode.Tab;
 
     // Available styles
     public enum PlayerStyle

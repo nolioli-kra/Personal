@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 2192365345275205341}
   m_Layer: 0
   m_Name: Enemy
-  m_TagString: Untagged
+  m_TagString: LockOnTarget
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -147,5 +147,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHealth: 100
+  currentHealth: 0
   isJuggled: 0
   juggleForce: 30

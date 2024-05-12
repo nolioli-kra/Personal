@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using ThirdPersonCameraWithLockOn;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
@@ -9,12 +10,15 @@ public class PlayerMovement : MonoBehaviour
     public float walkSpeed;
     public float sprintSpeed;
 
+    public float rotationSpeed;
+
     public float groundDrag;
 
     public float jumpForce;
     public float jumpCooldown;
     public float airMultiplier;
     bool readyToJump = true;
+
 
     public float fallMultiplier;
     private bool isFalling = false;
@@ -37,7 +41,11 @@ public class PlayerMovement : MonoBehaviour
     public float maxSlopeAngle;
     private RaycastHit slopeHit;
 
+    [Header("Camera")]
+    public Transform cameraTransform;
     public Transform orientation;
+    public ThirdPersonCamera camScript;
+    public bool isJumping;
 
     float horizontalInput;
     float verticalInput;
@@ -46,14 +54,17 @@ public class PlayerMovement : MonoBehaviour
 
     Rigidbody playerRb;
 
+    [Header("States")]
     public MovementState state;
     public enum MovementState
     {
         Walking,
         Sprinting,
-        air
+        air,
+        notMoving
     }
 
+    [Header("Debug")]
     //debug info
     private Vector3 currentVelocity;
     private bool onSlope;
@@ -62,6 +73,7 @@ public class PlayerMovement : MonoBehaviour
     {
         playerRb = GetComponent<Rigidbody>();
         playerRb.freezeRotation = true;
+        isJumping = false;
     }
 
     void Update()
@@ -92,6 +104,12 @@ public class PlayerMovement : MonoBehaviour
             playerRb.drag = 0;
         }
 
+        //update camera
+        if (camScript != null)
+        {
+            camScript.UpdateJumpingStatus(isJumping);
+        }
+
         //debugging
         currentVelocity = playerRb.velocity;
         //Debug.Log("Current velocity: " + currentVelocity);
@@ -110,17 +128,25 @@ public class PlayerMovement : MonoBehaviour
         {
             state = MovementState.Sprinting;
             moveSpeed = sprintSpeed;
+            isJumping = false;
         }
         //walking
-        else if (isGrounded)
+        else if (isGrounded && horizontalInput != 0 && verticalInput != 0)
         {
             state = MovementState.Walking;
             moveSpeed = walkSpeed;
+            isJumping = false;
         }
         //air
-        else
+        else if (!isGrounded)
         {
             state = MovementState.air;
+            isJumping = true;
+        }
+        else if (isGrounded && horizontalInput == 0 && verticalInput == 0)
+        {
+            state = MovementState.notMoving;
+            isJumping = false;
         }
     }
 
@@ -142,14 +168,30 @@ public class PlayerMovement : MonoBehaviour
 
     private void MovePlayer()
     {
+        // Calculate move direction based on camera orientation
+        Vector3 cameraForward = cameraTransform.forward;
+        Vector3 cameraRight = cameraTransform.right;
+        cameraForward.y = 0f; // Remove any vertical component
+        cameraRight.y = 0f; // Remove any vertical component
+        cameraForward.Normalize();
+        cameraRight.Normalize();
 
-        moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
+        // Calculate move direction based on input
+        moveDirection = cameraForward * verticalInput + cameraRight * horizontalInput;
+        moveDirection.Normalize();
 
+        // Rotate the player towards the move direction if actively changing direction
+        if (moveDirection != Vector3.zero)
+        {
+            Quaternion toRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);
+        }
+
+        // Apply forces based on move direction
         //on slope
         if (OnSlope())
         {
             playerRb.AddForce(GetSlopeMoveDirection() * moveSpeed * 10f, ForceMode.Force);
-
             onSlope = true;
         }
         else
@@ -160,7 +202,7 @@ public class PlayerMovement : MonoBehaviour
         //on ground
         if (isGrounded)
         {
-            playerRb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
+            playerRb.AddForce(moveDirection * moveSpeed * 10f, ForceMode.Force);
         } //in air
         else if (!isGrounded)
         {
@@ -168,9 +210,12 @@ public class PlayerMovement : MonoBehaviour
             {
                 playerRb.AddForce(Vector3.down * fallMultiplier, ForceMode.Acceleration);
             }
-            playerRb.AddForce(moveDirection.normalized * moveSpeed * 10f * airMultiplier, ForceMode.Force);
+            playerRb.AddForce(moveDirection * moveSpeed * 10f * airMultiplier, ForceMode.Force);
         }
     }
+
+
+
 
     private void SpeedControl()
     {
@@ -184,12 +229,14 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+
     private void Jump()
     {
         //reset y velocity to ensure consistent jump height
         playerRb.velocity = new Vector3(playerRb.velocity.x, 0f, playerRb.velocity.z);
 
         playerRb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+
     }
 
     private void ResetJump()
@@ -210,5 +257,14 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 GetSlopeMoveDirection()
     {
         return Vector3.ProjectOnPlane(moveDirection, slopeHit.normal).normalized;
+    }
+
+    private void OnApplicationFocus(bool focus)
+    {
+        if (focus)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 }
