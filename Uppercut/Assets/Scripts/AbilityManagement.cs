@@ -10,7 +10,7 @@ public class AbilityManagement : MonoBehaviour
     public KeyCode abilityThree = KeyCode.R;
 
     // Key binding for style-specific special move
-    public KeyCode styleSwitch = KeyCode.Tab;
+    public KeyCode styleSwitch = KeyCode.LeftShift;
 
     // Available styles
     public enum PlayerStyle

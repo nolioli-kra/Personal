@@ -895,7 +895,7 @@ namespace ThirdPersonCameraWithLockOn
             }
             else
             {
-                Debug.LogWarning("No possible targets!");
+                //Debug.LogWarning("No possible targets!");
                 return Vector3.zero;
             }
         }

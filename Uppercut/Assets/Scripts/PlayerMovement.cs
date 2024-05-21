@@ -5,20 +5,23 @@ using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
 {
+    float horizontalInput;
+    float verticalInput;
+
+    Vector3 moveDirection;
+
+    Rigidbody playerRb;
+
     [Header("Movement")]
     private float moveSpeed;
     public float walkSpeed;
     public float sprintSpeed;
-
     public float rotationSpeed;
-
     public float groundDrag;
-
     public float jumpForce;
     public float jumpCooldown;
     public float airMultiplier;
     bool readyToJump = true;
-
 
     public float fallMultiplier;
     private bool isFalling = false;
@@ -47,14 +50,8 @@ public class PlayerMovement : MonoBehaviour
     public ThirdPersonCamera camScript;
     public bool isJumping;
 
-    float horizontalInput;
-    float verticalInput;
-
-    Vector3 moveDirection;
-
-    Rigidbody playerRb;
-
     [Header("States")]
+    private Animator pumpkinAnim;
     public MovementState state;
     public enum MovementState
     {
@@ -63,6 +60,10 @@ public class PlayerMovement : MonoBehaviour
         air,
         notMoving
     }
+    private MovementState previousState;
+
+    [Header("Attack States")]
+    private PlayerMoveset playerMoveset;
 
     [Header("Debug")]
     //debug info
@@ -74,12 +75,32 @@ public class PlayerMovement : MonoBehaviour
         playerRb = GetComponent<Rigidbody>();
         playerRb.freezeRotation = true;
         isJumping = false;
+        previousState = state;
+
+        playerMoveset = GetComponent<PlayerMoveset>();
+        // Get the Animator component from the child
+        pumpkinAnim = GetComponentInChildren<Animator>();
+
+        // Ensure the animator is found
+        if (pumpkinAnim == null)
+        {
+            Debug.LogError("Animator not found on child object");
+        }
     }
 
     void Update()
     {
         //ground check
         isGrounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.3f, whatIsGround);
+
+        if (isGrounded)
+        {
+            pumpkinAnim.SetBool("isGrounded", true);
+        }
+        else
+        {
+            pumpkinAnim.SetBool("isGrounded", false);
+        }
 
         //falling check
         if (!isGrounded && playerRb.velocity.y < jumpApex)
@@ -118,40 +139,67 @@ public class PlayerMovement : MonoBehaviour
     private void FixedUpdate()
     {
         MovePlayer();
+        SlopeAndGround();
         SpeedControl();
     }
 
     private void StateHandler()
     {
-        //sprinting
-        if (Input.GetKey(sprintKey) && isGrounded)
+        // Default to not moving
+        bool isMoving = false;
+
+        // Determine the new state
+        if (Input.GetKey(sprintKey) && isGrounded && (horizontalInput != 0 || verticalInput != 0))
         {
             state = MovementState.Sprinting;
             moveSpeed = sprintSpeed;
             isJumping = false;
+            isMoving = true;
         }
-        //walking
-        else if (isGrounded && horizontalInput != 0 && verticalInput != 0)
+        else if (isGrounded && (horizontalInput != 0 || verticalInput != 0))
         {
             state = MovementState.Walking;
             moveSpeed = walkSpeed;
             isJumping = false;
+            isMoving = true;
         }
-        //air
         else if (!isGrounded)
         {
             state = MovementState.air;
             isJumping = true;
         }
-        else if (isGrounded && horizontalInput == 0 && verticalInput == 0)
+
+        // If not moving, set the notMoving state
+        if (!isMoving && isGrounded)
         {
             state = MovementState.notMoving;
             isJumping = false;
         }
+
+        // Only update the animator if the state has changed
+        if (state != previousState)
+        {
+            pumpkinAnim.SetBool("isSprinting", state == MovementState.Sprinting);
+            pumpkinAnim.SetBool("isWalking", state == MovementState.Walking);
+            pumpkinAnim.SetBool("isJumping", state == MovementState.air);
+            pumpkinAnim.SetBool("notMoving", state == MovementState.notMoving);
+
+            // Update the previous state
+            previousState = state;
+        }
     }
+
 
     private void MyInput()
     {
+        if (playerMoveset.isAttacking)
+        {
+            // Skip input logic if attacking
+            horizontalInput = 0;
+            verticalInput = 0;
+            return;
+        }
+
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
 
@@ -168,25 +216,35 @@ public class PlayerMovement : MonoBehaviour
 
     private void MovePlayer()
     {
-        // Calculate move direction based on camera orientation
-        Vector3 cameraForward = cameraTransform.forward;
-        Vector3 cameraRight = cameraTransform.right;
-        cameraForward.y = 0f; // Remove any vertical component
-        cameraRight.y = 0f; // Remove any vertical component
-        cameraForward.Normalize();
-        cameraRight.Normalize();
-
-        // Calculate move direction based on input
-        moveDirection = cameraForward * verticalInput + cameraRight * horizontalInput;
-        moveDirection.Normalize();
-
-        // Rotate the player towards the move direction if actively changing direction
-        if (moveDirection != Vector3.zero)
+        if (playerMoveset.isAttacking)
         {
-            Quaternion toRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);
-        }
+            return;
+        } 
+        else
+        {
+            // Calculate move direction based on camera orientation
+            Vector3 cameraForward = cameraTransform.forward;
+            Vector3 cameraRight = cameraTransform.right;
+            cameraForward.y = 0f; // Remove any vertical component
+            cameraRight.y = 0f; // Remove any vertical component
+            cameraForward.Normalize();
+            cameraRight.Normalize();
 
+            // Calculate move direction based on input
+            moveDirection = cameraForward * verticalInput + cameraRight * horizontalInput;
+            moveDirection.Normalize();
+
+            // Rotate the player towards the move direction if actively changing direction
+            if (moveDirection != Vector3.zero)
+            {
+                Quaternion toRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, rotationSpeed * Time.deltaTime);
+            }
+        }
+    }
+
+    private void SlopeAndGround()
+    {
         // Apply forces based on move direction
         //on slope
         if (OnSlope())
@@ -216,7 +274,6 @@ public class PlayerMovement : MonoBehaviour
 
 
 
-
     private void SpeedControl()
     {
         Vector3 flatVelocity = new Vector3(playerRb.velocity.x, 0f, playerRb.velocity.z);
@@ -232,6 +289,10 @@ public class PlayerMovement : MonoBehaviour
 
     private void Jump()
     {
+        if (playerMoveset.isAttacking)
+        {
+            return;
+        }
         //reset y velocity to ensure consistent jump height
         playerRb.velocity = new Vector3(playerRb.velocity.x, 0f, playerRb.velocity.z);
 
